@@ -37,6 +37,6 @@ getTmax(conn = mydb,
    timeFrame = 4)
 
 Will return monthly CHIRTSmax data for all DHS points in
-Angola from 01-01-2011 through 12-31-2015
+Angola from 01-01-2011 to 12-31-2015
 
 }

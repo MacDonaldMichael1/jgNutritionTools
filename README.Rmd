@@ -1,0 +1,67 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# jgNutritionTools
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of jgNutritionTools is to provide a toolset for the analysis and management of human health and physical data.
+
+## Installation
+
+You can install the development version of jgNutritionTools from [GitHub](https://github.com/) with:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("MacDonaldMichael1/jgNutritionTools")
+```
+
+## Examples
+
+Assuming a valid DB connection has been made:
+
+1. Use helper function to display country year combinations
+
+```{r conn, include=FALSE}
+require(RMySQL)
+
+lapply(dbListConnections(MySQL()),
+       dbDisconnect)
+dbListConnections(MySQL())
+
+
+mydb <- dbConnect(drv = MySQL(),
+                  host = "jgnutritionsec.ctincuwvvm7w.us-west-2.rds.amazonaws.com",
+                  default.file = path.expand("~/.my.cnf"),
+                  group = "admin")
+```
+
+```{r example, message = F}
+library(jgNutritionTools)
+library(tidyverse)
+## Show country and DHSYEAR combos for DHS surveys with country code
+getCountryYearCom(mydb) %>% head()
+
+```   
+2. Retrieve CHIRPS precipitation data for Burkina Faso in 2003
+```{r echo=TRUE, eval = F}
+getPrecip(conn = mydb, countryCode = "854",
+          Year = "2003",
+          timeFrame = 0)
+```
+## Acknowledgements 
+
+A portion of the source code for functions in the `jgNutritionTools` package was developed using code from the [ropensci/chirps](https://github.com/ropensci/chirps) package. We thank these developers for providing this code under the MIT licence.

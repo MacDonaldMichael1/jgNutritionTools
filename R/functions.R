@@ -85,10 +85,10 @@ GROUP BY table_schema"))
 #'    timeFrame = 4)
 #'
 #' Will return precipitation data for all DHS points in
-#' Angola from 01-01-2011 through 12-31-2015
+#' Angola from 01-01-2011 to 12-31-2015
 #'
 
-getPrecip <- function(conn, countryCode, Year, timeFrame){
+getPrecip <- function(conn, countryCode, Year, timeFrame) {
   # If a package is installed, it will be loaded. If any
   # are not, the missing package(s) will be installed
   # from CRAN and then loaded.
@@ -108,44 +108,68 @@ getPrecip <- function(conn, countryCode, Year, timeFrame){
   )
 
   #Extract spatial data from DB
-  pointsDF <- DBI::dbGetQuery(conn = mydb, statement = paste0("SELECT * FROM NutritionSecurity.spatialObs WHERE COUNTRY = '",noquote(countryCode),"' AND DHSYEAR = '", noquote(Year),"'"))
+  pointsDF <-
+    DBI::dbGetQuery(
+      conn = mydb,
+      statement = paste0(
+        "SELECT * FROM NutritionSecurity.spatialObs WHERE COUNTRY = '",
+        noquote(countryCode),
+        "' AND DHSYEAR = '",
+        noquote(Year),
+        "'"
+      )
+    )
 
   #Change class to sf
   #pointsSF <- sf::st_as_sf(pointsDF, coords = c("LONGNUM", "LATNUM"), remove = FALSE)
 
   #Set end Date and Start Dates
-  endDate <- lubridate::ymd(paste0(as.character(pointsDF$DHSYEAR[1]),"-12-31"))
-  startDate <- lubridate::ymd(paste0(as.character(pointsDF$DHSYEAR[1]),"-01-01")) %m-% years(as.integer(timeFrame))
+  endDate <-
+    lubridate::ymd(paste0(as.character(pointsDF$DHSYEAR[1]), "-12-31"))
+  startDate <-
+    lubridate::ymd(paste0(as.character(pointsDF$DHSYEAR[1]), "-01-01")) %m-% years(as.integer(timeFrame))
 
   #Sequence to pull dates for download links from ftp
-  seqdate <- format(seq.Date(zoo::as.Date(startDate), zoo::as.Date(endDate), by = "month"), format = "%Y-%m")
-  years <- format(seq.Date(zoo::as.Date(startDate), zoo::as.Date(endDate), by = "year"), format = "%Y")
+  seqdate <-
+    format(seq.Date(zoo::as.Date(startDate), zoo::as.Date(endDate), by = "month"), format = "%Y-%m")
+  years <-
+    format(seq.Date(zoo::as.Date(startDate), zoo::as.Date(endDate), by = "year"), format = "%Y")
 
   #Set filename variable
   file_name_var <- "chirps-v2.0."
 
   #year range check for data availability
-  yrange <- seq(1981, as.numeric(format(Sys.Date(), format = "%Y")), 1)
+  yrange <-
+    seq(1981, as.numeric(format(Sys.Date(), format = "%Y")), 1)
   stopifnot("Some dates entered are outside of CHIRTS data temporal coverage" = unique(years) %in% yrange)
   #format dates to match dates in http address for .tiff files
-  dates <- gsub("-","\\.", seqdate)
+  dates <- gsub("-", "\\.", seqdate)
   fnames <- file.path(paste0(file_name_var , dates, ".cog"))
   # set file path to chirps location
   # cog =  cloud optomized geotiff. A more efficient way to access geospatial data online
-  u <- file.path("https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_monthly/cogs", fnames)
+  u <-
+    file.path("https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_monthly/cogs",
+              fnames)
   # use gdal vsicurl to increase efficiency
   u1 <- file.path("/vsicurl", u)
   # download rasters
   r <- terra::rast(u1)
   # use terra extract to extract raster values to points
-  rr <- terra::extract(r, pointsDF[,c("LONGNUM", "LATNUM")], xy = T)
+  rr <- terra::extract(r, pointsDF[, c("LONGNUM", "LATNUM")], xy = T)
   # rename columns
-  dates <- gsub(pattern = "\\.", "-", names(rr)[grep("chirps-v2.0.", names(rr))]) %>%
+  dates <-
+    gsub(pattern = "\\.", "-", names(rr)[grep("chirps-v2.0.", names(rr))]) %>%
     str_remove("chirps-v2-0-") %>%
     zoo::as.yearmon()
-  colnames(rr)[grep("chirps-v2.0.", names(rr))] <- paste0("mm_month_", gsub("[^[:alnum:]]", "_", dates))
+  colnames(rr)[grep("chirps-v2.0.", names(rr))] <-
+    paste0("mm_month_", gsub("[^[:alnum:]]", "_", dates))
   # left join to original spatial data frame by long and lat
-  rr <- left_join(x = pointsDF, y = rr[,2:length(rr)], by = c("LATNUM" = "y", "LONGNUM" = "x"))
+  rr <-
+    left_join(
+      x = pointsDF,
+      y = rr[, 2:length(rr)],
+      by = c("LATNUM" = "y", "LONGNUM" = "x")
+    )
   # return data
   return(rr)
 }
@@ -178,11 +202,10 @@ getPrecip <- function(conn, countryCode, Year, timeFrame){
 #'    timeFrame = 4)
 #'
 #' Will return monthly CHIRTSmax data for all DHS points in
-#' Angola from 01-01-2011 through 12-31-2015
+#' Angola from 01-01-2011 to 12-31-2015
 #'
 
 getTMax <- function(conn, countryCode, Year, timeFrame) {
-
   packages <- c("tidyverse", "stringr", "sf", "lubridate", "zoo")
 
   ## Now load or install&load all
@@ -196,18 +219,32 @@ getTMax <- function(conn, countryCode, Year, timeFrame) {
     }
   )
   ##Extract spatial data from DB
-  pointsDF <- DBI::dbGetQuery(conn = mydb, statement = paste0("SELECT * FROM NutritionSecurity.spatialObs WHERE COUNTRY = '",noquote(countryCode),"' AND DHSYEAR = '", noquote(Year),"'"))
+  pointsDF <-
+    DBI::dbGetQuery(
+      conn = mydb,
+      statement = paste0(
+        "SELECT * FROM NutritionSecurity.spatialObs WHERE COUNTRY = '",
+        noquote(countryCode),
+        "' AND DHSYEAR = '",
+        noquote(Year),
+        "'"
+      )
+    )
 
   #Change class to sf
   #pointsSF <- sf::st_as_sf(pointsDF, coords = c("LONGNUM", "LATNUM"), remove = FALSE)
 
   #Set end Date and Start Dates
-  endDate <- lubridate::ymd(paste0(as.character(pointsDF$DHSYEAR[1]),"-12-31"))
-  startDate <- lubridate::ymd(paste0(as.character(pointsDF$DHSYEAR[1]),"-01-01")) %m-% years(as.integer(timeFrame))
+  endDate <-
+    lubridate::ymd(paste0(as.character(pointsDF$DHSYEAR[1]), "-12-31"))
+  startDate <-
+    lubridate::ymd(paste0(as.character(pointsDF$DHSYEAR[1]), "-01-01")) %m-% years(as.integer(timeFrame))
 
   #Sequence to pull dates for download links from ftp
-  seqdate <- format(seq.Date(zoo::as.Date(startDate), zoo::as.Date(endDate), by = "month"), format = "%Y-%m")
-  years <- format(seq.Date(zoo::as.Date(startDate), zoo::as.Date(endDate), by = "year"), format = "%Y")
+  seqdate <-
+    format(seq.Date(zoo::as.Date(startDate), zoo::as.Date(endDate), by = "month"), format = "%Y-%m")
+  years <-
+    format(seq.Date(zoo::as.Date(startDate), zoo::as.Date(endDate), by = "year"), format = "%Y")
 
   #Set filename variable
   file_name_var <- "CHIRTSmax."
@@ -216,25 +253,36 @@ getTMax <- function(conn, countryCode, Year, timeFrame) {
   yrange <- seq(1983, 2016, 1)
   stopifnot("Dates entered are outside of CHIRTS data temporal coverage" = unique(years) %in% yrange)
 
-  dates <- gsub("-","\\.", seqdate)
+  dates <- gsub("-", "\\.", seqdate)
   fnames <- file.path(paste0(file_name_var , dates, ".tif"))
 
   #resolution <- gsub("0\\.", "p", resolution)
 
-  u <- file.path("https://data.chc.ucsb.edu/products/CHIRTSmonthly/CHIRTSmax.CDR", fnames)
+  u <-
+    file.path("https://data.chc.ucsb.edu/products/CHIRTSmonthly/CHIRTSmax.CDR",
+              fnames)
 
   u1 <- file.path("/vsicurl", u)
+  # download rasters
   r <- terra::rast(u1)
-  rr <- terra::extract(r, pointsDF[,c("LONGNUM", "LATNUM")], xy = T)
-
-  dates <- gsub(pattern = "\\.", "-", names(rr)[grep("CHIRTSmax.", names(rr))]) %>%
+  # use terra extract to extract raster values to points
+  rr <- terra::extract(r, pointsDF[, c("LONGNUM", "LATNUM")], xy = T)
+  # rename columns
+  dates <-
+    gsub(pattern = "\\.", "-", names(rr)[grep("CHIRTSmax.", names(rr))]) %>%
     str_remove("CHIRTSmax-") %>%
     zoo::as.yearmon()
 
-  colnames(rr)[grep("CHIRTSmax.", names(rr))] <- paste0("tMax_", gsub("[^[:alnum:]]", "_", dates))
-
-  rr <- left_join(x = pointsDF, y = rr[,2:length(rr)], by = c("LATNUM" = "y", "LONGNUM" = "x"))
-
+  colnames(rr)[grep("CHIRTSmax.", names(rr))] <-
+    paste0("tMax_", gsub("[^[:alnum:]]", "_", dates))
+  # left join to original spatial data frame by long and lat
+  rr <-
+    left_join(
+      x = pointsDF,
+      y = rr[, 2:length(rr)],
+      by = c("LATNUM" = "y", "LONGNUM" = "x")
+    )
+  # return data
   return(rr)
 }
 
@@ -250,10 +298,13 @@ getTMax <- function(conn, countryCode, Year, timeFrame) {
 #' showCountryYearCom(conn = mydb)
 #'
 #'
-getCountryYearCom <- function(conn){
-  dbGetQuery(conn, statement = "SELECT spatialObs.COUNTRY, DHSYEAR, countryName
+getCountryYearCom <- function(conn) {
+  dbGetQuery(
+    conn,
+    statement = "SELECT spatialObs.COUNTRY, DHSYEAR, countryName
 FROM spatialObs
 INNER JOIN countries
 ON countries.COUNTRY = spatialObs.COUNTRY
-GROUP BY COUNTRY, DHSYEAR;")
+GROUP BY COUNTRY, DHSYEAR;"
+  )
 }
