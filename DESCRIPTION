@@ -1,0 +1,20 @@
+Package: jgNutritionTools
+Type: Package
+Title: Tools To Interact With JG Research Database
+Version: 0.1.0
+Authors@R: person("Michael", "MacDonald", email = "macdonald.mik@gmail.com", role = c("aut", "cre"))
+Description: Tools to query nutrition security data from JG Research Database and
+    retrieve CHIRPS and CHIRTS global data for spatial observations.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports:
+    lubridate (>= 1.8.0),
+    stringr (>= 1.4.0),
+    sf (>= 1.0-4),
+    tidyverse (>= 1.3.1),
+    zoo (>= 1.8-9)
+RoxygenNote: 7.1.2
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
