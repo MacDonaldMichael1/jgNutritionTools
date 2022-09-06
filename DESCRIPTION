@@ -1,7 +1,7 @@
 Package: jgNutritionTools
 Type: Package
 Title: Tools To Interact With JG Research Database
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: person("Michael", "MacDonald", email = "macdonald.mik@gmail.com", role = c("aut", "cre"))
 Description: Tools to query nutrition security data from JG Research Database and
     retrieve CHIRPS and CHIRTS global data for spatial observations.
