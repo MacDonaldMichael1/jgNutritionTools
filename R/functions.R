@@ -11,7 +11,7 @@
 #' GetDHSVarInfo(browserLoc = "C:/Program Files/Mozilla Firefox/firefox.exe", variable = 'CLUSTERNO')
 #'
 getDHSVarInfo <- function(browserLoc, variable){
-  browseURL(url = paste0("https://www.idhsdata.org/idhs-action/variables/",
+  utils::browseURL(url = paste0("https://www.idhsdata.org/idhs-action/variables/",
                          variable, "#codes_section"),
             browser = browserLoc)
 }
@@ -37,13 +37,13 @@ uniqueID <- function(x) {
 #' `check_db_size()` Shows the size of database in MB
 #'
 #' @param conn a Formal class MySQLConnection established with RMySQL
-#' @param db a non-empty character string of a named database
+#' @param db a non-empty character string of a named database. Defaults to `'NutritionSecurity-2'`
 #' @return A table showing the size of the database in megabytes
 #'
 #' @examples check_db_size(conn = mydb, db = NutritionSecurity)
 #'
-check_db_size <- function(connection, db) {
-  dbGetQuery(conn = connection,
+check_db_size <- function(conn, db = 'NutritionSecurity-2') {
+  DBI::dbGetQuery(conn = conn,
              statement = paste0("SELECT table_schema '", db, "', ",
                                 "ROUND(SUM(data_length + index_length) / 1024 / 1024, 1) 'DB Size in MB'
 FROM information_schema.tables
@@ -56,11 +56,6 @@ GROUP BY table_schema"))
 # getPrecip()----
 
 
-# To Do:
-#1. Need to likely replicate DHS methods (10km buffer for Rural areas, 2KM buffer for Urban Areas and use a function like mean)
-#2. add option to return dataframe vs shapefile
-
-
 #' Get CHIRPS data for a specified country and time period
 #'
 #' \code{getPrecip()} takes DHS spatial point data from the jgnutritionsecurity database and reads geotiff data from an HTTP web protocol to calculate monthly precipitation values at each point of interest.
@@ -68,13 +63,8 @@ GROUP BY table_schema"))
 #' @param conn a Formal class MySQLConnection established with `RMySQL`
 #' @param countryCode a 3 digit character vector representing the country where spatial points should be extracted from. This is the
 #' 'COUNTRY' column in the countries table in the jgnutritionsecurity database. Run \code{\link{getCountryYearCom}} to find unique country and year combinations.
-#' @param  Year a 4 digit character vector representing the Year the survey was conducted. This variable is called 'DHSYEAR' in DHS data.
-#' @param timeFrame numeric vector representing the number of years of precipitation data required.
-#' \itemize{
-#' \item\strong{timeFrame = 0} will return data from the DHS survey year
-#' \item\strong{timeFrame = 1} will return data from the DHS survey year and 1 year prior
-#' \item etc...
-#' }
+#' @param  Year a 4 digit character vector representing the Year the survey was conducted.
+#' @param startDate,endDate YYYY-MM-DD for start date and end date.
 #'
 #' @return A data frame with monthly precipitation values in mm/month for each spatial observation. Additional attributes for spatial observations will be preserved.
 #' See CHIRPS website for more information. \url{https://www.chc.ucsb.edu/data/chirps}
@@ -82,52 +72,60 @@ GROUP BY table_schema"))
 #' getPrecip(conn = mydb,
 #'  countryCode = "024",
 #'   Year = "2015",
-#'    timeFrame = 4)
+#'    startDate = "2014-01-01",
+#'    endDate = "2016-12-31")
 #'
 #' Will return precipitation data for all DHS points in
-#' Angola from 01-01-2011 to 12-31-2015
-#'
+#' Angola from 01-01-2014 to 12-31-2016
 
-getPrecip <- function(conn, countryCode, Year, timeFrame) {
+getPrecip <- function(conn, countryCode, Year, startDate, endDate) {
   # If a package is installed, it will be loaded. If any
   # are not, the missing package(s) will be installed
   # from CRAN and then loaded.
 
-  ## First specify the packages of interest
-  packages <- c("tidyverse", "stringr", "sf", "lubridate", "zoo")
+  # # ## First specify the packages of interest
+  # packages <- c("tidyverse", "stringr", "sf", "lubridate", "zoo")
+  #
+  # ## Now load or install&load all
+  # package.check <- lapply(
+  #   packages,
+  #   FUN = function(x) {
+  #     if (!require(x, character.only = TRUE)) {
+  #       install.packages(x, dependencies = TRUE)
+  #       library(x, character.only = TRUE)
+  #     }
+  #   }
+  # )
 
-  ## Now load or install&load all
-  package.check <- lapply(
-    packages,
-    FUN = function(x) {
-      if (!require(x, character.only = TRUE)) {
-        install.packages(x, dependencies = TRUE)
-        library(x, character.only = TRUE)
-      }
-    }
-  )
-
-  #Extract spatial data from DB
+  #  Extract spatial data from DB
   pointsDF <-
     DBI::dbGetQuery(
-      conn = mydb,
+      conn = conn,
       statement = paste0(
-        "SELECT * FROM NutritionSecurity.spatialObs WHERE COUNTRY = '",
+        "SELECT * FROM spatialpoints WHERE COUNTRY = '",
         noquote(countryCode),
-        "' AND DHSYEAR = '",
+        "' AND YEAR = '",
         noquote(Year),
         "'"
       )
     )
 
+  # pointsDF <-
+  #   DBI::dbGetQuery(
+  #     conn = pool,
+  #     statement = "SELECT * FROM spatialpoints WHERE COUNTRY = '854' AND YEAR = '2003'")
+
   #Change class to sf
   #pointsSF <- sf::st_as_sf(pointsDF, coords = c("LONGNUM", "LATNUM"), remove = FALSE)
 
   #Set end Date and Start Dates
-  endDate <-
-    lubridate::ymd(paste0(as.character(pointsDF$DHSYEAR[1]), "-12-31"))
-  startDate <-
-    lubridate::ymd(paste0(as.character(pointsDF$DHSYEAR[1]), "-01-01")) %m-% years(as.integer(timeFrame))
+  # endDate <-
+  #   lubridate::ymd(paste0(as.character(pointsDF$YEAR[1]), "-12-31"))
+  # startDate <-
+  #   lubridate::ymd(paste0(as.character(pointsDF$YEAR[1]), "-01-01")) %m-% years(as.integer(timeFrame))
+  endDate <- lubridate::ymd(endDate)
+  startDate <- lubridate::ymd(startDate)
+
 
   #Sequence to pull dates for download links from ftp
   seqdate <-
@@ -155,21 +153,23 @@ getPrecip <- function(conn, countryCode, Year, timeFrame) {
   # download rasters
   r <- terra::rast(u1)
   # use terra extract to extract raster values to points
-  rr <- terra::extract(r, pointsDF[, c("LONGNUM", "LATNUM")], xy = T)
+  rr <- terra::extract(r, pointsDF[, c("LONGNUM", "LATNUM")], xy = F)
   # rename columns
   dates <-
     gsub(pattern = "\\.", "-", names(rr)[grep("chirps-v2.0.", names(rr))]) %>%
-    str_remove("chirps-v2-0-") %>%
+    stringr::str_remove("chirps-v2-0-") %>%
     zoo::as.yearmon()
   colnames(rr)[grep("chirps-v2.0.", names(rr))] <-
     paste0("mm_month_", gsub("[^[:alnum:]]", "_", dates))
   # left join to original spatial data frame by long and lat
-  rr <-
-    left_join(
-      x = pointsDF,
-      y = rr[, 2:length(rr)],
-      by = c("LATNUM" = "y", "LONGNUM" = "x")
-    )
+  # rr <-
+  #   left_join(
+  #     x = pointsDF,
+  #     y = rr[, 2:length(rr)],
+  #     by = c("LATNUM" = "y", "LONGNUM" = "x")
+  #   )
+  #bind to original dataframe
+  rr <- cbind(pointsDF, rr[2:length(rr)])
   # return data
   return(rr)
 }
@@ -181,64 +181,55 @@ getPrecip <- function(conn, countryCode, Year, timeFrame) {
 #'
 #' @param conn a Formal class MySQLConnection established with `RMySQL`
 #' @param countryCode a 3 digit character vector representing the country where spatial points should be extracted from. This is the
-#' 'COUNTRY' column in the countries table in the jgnutritionsecurity database.
-#'
-#' Run \code{\link{getCountryYearCom}} to find unique country and year combinations.
-#' @param  Year a 4 digit character vector representing the Year the survey was conducted. This variable is called 'DHSYEAR' in DHS data.
-#' @param timeFrame numeric vector representing the number of years of temperature data required.
-#' \itemize{
-#' \item\strong{timeFrame = 0} will return data from the DHS survey year
-#' \item\strong{timeFrame = 1} will return data from the DHS survey year and 1 year prior
-#' \item etc...
-#' }
+#' 'COUNTRY' column in the countries table in the jgnutritionsecurity database. Run \code{\link{getCountryYearCom}} to find unique country and year combinations.
+#' @param  Year a 4 digit character vector representing the Year the survey was conducted.
+#' @param startDate,endDate YYYY-MM-DD for start date and end date.
 #'
 #' @return A data frame with monthly CHIRTSmax values in Celsius for each spatial observation. Additional attributes for spatial observations will be preserved.
 #' See CHIRTS website for more information. \url{https://www.chc.ucsb.edu/data/chirtsmonthly}
 #'
 #' @examples
-#' getTmax(conn = mydb,
+#' getTMax(conn = mydb,
 #'  countryCode = "024",
 #'   Year = "2015",
-#'    timeFrame = 4)
+#'    startDate = "2014-01-01",
+#'    endDate = "2016-12-31")
 #'
 #' Will return monthly CHIRTSmax data for all DHS points in
-#' Angola from 01-01-2011 to 12-31-2015
+#' Angola from 01-01-2014 to 12-31-2016
 #'
 
-getTMax <- function(conn, countryCode, Year, timeFrame) {
-  packages <- c("tidyverse", "stringr", "sf", "lubridate", "zoo")
-
-  ## Now load or install&load all
-  package.check <- lapply(
-    packages,
-    FUN = function(x) {
-      if (!require(x, character.only = TRUE)) {
-        install.packages(x, dependencies = TRUE)
-        library(x, character.only = TRUE)
-      }
-    }
-  )
+getTMax <- function(conn, countryCode, Year, startDate, endDate) {
+#  packages <- c("tidyverse", "stringr", "sf", "lubridate", "zoo")
+#
+#   ## Now load or install&load all
+#   package.check <- lapply(
+#     packages,
+#     FUN = function(x) {
+#       if (!require(x, character.only = TRUE)) {
+#         install.packages(x, dependencies = TRUE)
+#         library(x, character.only = TRUE)
+#       }
+#     }
+#   )
   ##Extract spatial data from DB
   pointsDF <-
     DBI::dbGetQuery(
-      conn = mydb,
+      conn = conn,
       statement = paste0(
-        "SELECT * FROM NutritionSecurity.spatialObs WHERE COUNTRY = '",
+        "SELECT * FROM spatialpoints WHERE COUNTRY = '",
         noquote(countryCode),
-        "' AND DHSYEAR = '",
+        "' AND YEAR = '",
         noquote(Year),
         "'"
       )
     )
-
   #Change class to sf
   #pointsSF <- sf::st_as_sf(pointsDF, coords = c("LONGNUM", "LATNUM"), remove = FALSE)
 
   #Set end Date and Start Dates
-  endDate <-
-    lubridate::ymd(paste0(as.character(pointsDF$DHSYEAR[1]), "-12-31"))
-  startDate <-
-    lubridate::ymd(paste0(as.character(pointsDF$DHSYEAR[1]), "-01-01")) %m-% years(as.integer(timeFrame))
+  endDate <- lubridate::ymd(endDate)
+  startDate <- lubridate::ymd(startDate)
 
   #Sequence to pull dates for download links from ftp
   seqdate <-
@@ -266,22 +257,23 @@ getTMax <- function(conn, countryCode, Year, timeFrame) {
   # download rasters
   r <- terra::rast(u1)
   # use terra extract to extract raster values to points
-  rr <- terra::extract(r, pointsDF[, c("LONGNUM", "LATNUM")], xy = T)
+  rr <- terra::extract(r, pointsDF[, c("LONGNUM", "LATNUM")], xy = F)
   # rename columns
   dates <-
     gsub(pattern = "\\.", "-", names(rr)[grep("CHIRTSmax.", names(rr))]) %>%
-    str_remove("CHIRTSmax-") %>%
+    stringr::str_remove("CHIRTSmax-") %>%
     zoo::as.yearmon()
 
   colnames(rr)[grep("CHIRTSmax.", names(rr))] <-
     paste0("tMax_", gsub("[^[:alnum:]]", "_", dates))
   # left join to original spatial data frame by long and lat
-  rr <-
-    left_join(
-      x = pointsDF,
-      y = rr[, 2:length(rr)],
-      by = c("LATNUM" = "y", "LONGNUM" = "x")
-    )
+  # rr <-
+  #   left_join(
+  #     x = pointsDF,
+  #     y = rr[, 2:length(rr)],
+  #     by = c("LATNUM" = "y", "LONGNUM" = "x")
+  #   )
+  rr <- cbind(pointsDF, rr[2:length(rr)])
   # return data
   return(rr)
 }
@@ -299,12 +291,13 @@ getTMax <- function(conn, countryCode, Year, timeFrame) {
 #'
 #'
 getCountryYearCom <- function(conn) {
-  dbGetQuery(
+  DBI::dbGetQuery(
     conn,
-    statement = "SELECT spatialObs.COUNTRY, DHSYEAR, countryName
-FROM spatialObs
-INNER JOIN countries
-ON countries.COUNTRY = spatialObs.COUNTRY
-GROUP BY COUNTRY, DHSYEAR;"
+    statement = "SELECT p.COUNTRY, YEAR, countryName
+    FROM spatialpoints p
+    INNER JOIN countries c
+    ON c.COUNTRY = p.COUNTRY
+    GROUP BY p.COUNTRY, YEAR;"
   )
 }
+

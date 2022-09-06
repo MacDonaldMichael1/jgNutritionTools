@@ -4,12 +4,12 @@
 \alias{check_db_size}
 \title{Check database size}
 \usage{
-check_db_size(connection, db)
+check_db_size(conn, db = "NutritionSecurity-2")
 }
 \arguments{
-\item{db}{a non-empty character string of a named database}
-
 \item{conn}{a Formal class MySQLConnection established with RMySQL}
+
+\item{db}{a non-empty character string of a named database. Defaults to `'NutritionSecurity-2'`}
 }
 \value{
 A table showing the size of the database in megabytes

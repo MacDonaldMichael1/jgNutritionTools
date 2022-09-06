@@ -4,24 +4,17 @@
 \alias{getTMax}
 \title{Get CHIRTSmonthly data for a specified country and time period}
 \usage{
-getTMax(conn, countryCode, Year, timeFrame)
+getTMax(conn, countryCode, Year, startDate, endDate)
 }
 \arguments{
 \item{conn}{a Formal class MySQLConnection established with `RMySQL`}
 
 \item{countryCode}{a 3 digit character vector representing the country where spatial points should be extracted from. This is the
-'COUNTRY' column in the countries table in the jgnutritionsecurity database.
+'COUNTRY' column in the countries table in the jgnutritionsecurity database. Run \code{\link{getCountryYearCom}} to find unique country and year combinations.}
 
-Run \code{\link{getCountryYearCom}} to find unique country and year combinations.}
+\item{Year}{a 4 digit character vector representing the Year the survey was conducted.}
 
-\item{Year}{a 4 digit character vector representing the Year the survey was conducted. This variable is called 'DHSYEAR' in DHS data.}
-
-\item{timeFrame}{numeric vector representing the number of years of temperature data required.
-\itemize{
-\item\strong{timeFrame = 0} will return data from the DHS survey year
-\item\strong{timeFrame = 1} will return data from the DHS survey year and 1 year prior
-\item etc...
-}}
+\item{startDate, endDate}{YYYY-MM-DD for start date and end date.}
 }
 \value{
 A data frame with monthly CHIRTSmax values in Celsius for each spatial observation. Additional attributes for spatial observations will be preserved.
@@ -31,12 +24,13 @@ See CHIRTS website for more information. \url{https://www.chc.ucsb.edu/data/chir
 \code{getTmax()} takes DHS spatial point data from the jgnutritionsecurity database and reads geotiff data from an HTTP web protocol to calculate monthly temperature values at each point of interest.
 }
 \examples{
-getTmax(conn = mydb,
+getTMax(conn = mydb,
  countryCode = "024",
   Year = "2015",
-   timeFrame = 4)
+   startDate = "2014-01-01",
+   endDate = "2016-12-31")
 
 Will return monthly CHIRTSmax data for all DHS points in
-Angola from 01-01-2011 to 12-31-2015
+Angola from 01-01-2014 to 12-31-2016
 
 }
